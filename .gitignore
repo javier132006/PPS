@@ -1,0 +1,39 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+docker-compose.override.yml
+*.pem
+*.key
+
+# Web
+node_modules/
+npm-debug.log*
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs, temporales y bases de datos locales
+*.log
+*.tmp
+*.db
+*.sqlite3
