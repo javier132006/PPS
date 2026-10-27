@@ -36,4 +36,6 @@ Thumbs.db
 *.log
 *.tmp
 *.db
-*.sqlite3
+*.sqlite3__pycache__/
+.pytest_cache/
+.coverage
