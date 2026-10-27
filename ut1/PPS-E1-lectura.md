@@ -1,0 +1,13 @@
+# PPS-E1 · Lectura entrada→sink
+
+| Fichero | Punto de entrada | Sink(s) | Validación (¿cuál? ¿basta?) | Dónde falla según su modelo de ejecución |
+|---|---|---|---|---|
+| `validar.py` (interpretado) | `sys.argv[1]`, que llega como parámetro `nombre` a `buscar_usuario()` | 1) `con.execute(consulta)`: SQL construido por concatenación (inyección SQL). 2) `os.system("logger acceso de " + nombre)`: ejecuta una orden de shell con el dato (inyección de comandos; comprobado con `x; id`). 3) `eval(regla)`: ejecuta como código Python una cadena que contiene el dato. **El más peligroso es `eval`.** | `validar_nombre()`: solo comprueba `0 < len(nombre) <= 32`. **No basta**: limita el tamaño, no el contenido. `x; id` mide 5 caracteres y pasa sin problema. | Al ser interpretado, el código se ejecuta tal cual en el servidor y existen construcciones (`eval`, `os.system`) que convierten texto en código u órdenes. El dato deja de ser dato y pasa a ser código. Con `' OR '1'='1` se rompe el literal y `eval` lanza `SyntaxError`. |
+| `Validar.java` (bytecode / JVM) | `args[0]` en `main()`, que pasa a `buscarUsuario()` | `st.executeQuery(consulta)`: SQL construido por concatenación (inyección SQL). Secundario: `System.out.println("acceso de " + nombre)` (inyección en logs). | `validarNombre()`: `nombre != null` y longitud entre 1 y 32. **No basta**: no filtra comillas ni caracteres especiales, así que la inyección SQL cabe en 32 caracteres. | El `.class` es bytecode, pero se puede decompilar (jadx, procyon) y recuperar casi el código original. Quien tenga el binario ve la clave hardcodeada (`apiKey = "LAB-DEMO-NO-REAL-1234"`) y la lógica. Compilar a bytecode no oculta secretos. |
+| `validar.c` (nativo) | `argv[1]` en `main()`, que pasa a `buscar_usuario()` | `strcpy(buffer, nombre)` sobre `char buffer[32]`. | **Ninguna.** No se comprueba la longitud antes de copiar. | C compilado a nativo no tiene seguridad de memoria: `strcpy` copia hasta el `\0` sin mirar el tamaño del destino. Con más de 31 caracteres se desborda el buffer (buffer overflow) y se pisa la pila, pudiendo bloquear el programa o ejecutar código del atacante. |
+
+## ¿Cómo lo corregirías? (una línea por fichero)
+
+- `validar.py`: usar consulta parametrizada (`con.execute("... WHERE nombre = ?", (nombre,))`), eliminar `eval` y sustituir `os.system` por `subprocess.run([...])` con lista de argumentos, además de validar el contenido con una lista blanca (por ejemplo `^[a-zA-Z0-9_]+$`).
+- `Validar.java`: usar `PreparedStatement` con `?` en vez de concatenar, y sacar la clave del código (variable de entorno o gestor de secretos).
+- `validar.c`: comprobar `strlen(nombre) < sizeof(buffer)` antes de copiar, o usar `snprintf(buffer, sizeof(buffer), "%s", nombre)` en lugar de `strcpy`.
